@@ -1,0 +1,71 @@
+
+FROM cirepo/nix:2.2.1-alpine-3.9
+
+
+ARG IMAGE_ARG_ALPINE_MIRROR
+
+ARG IMAGE_ARG_ENCODING
+ARG IMAGE_ARG_JAVA_HOME
+ARG IMAGE_ARG_JAVA_OPTS
+ARG IMAGE_ARG_JAVA_VENDOR
+ARG IMAGE_ARG_LANGUAGE
+ARG IMAGE_ARG_LOCALE
+ARG IMAGE_ARG_REGION
+ARG IMAGE_ARG_TZ_AREA
+ARG IMAGE_ARG_TZ_ZONE
+
+
+COPY --from=cirepo/locale:%IMAGE_ARG_LOCALE%.%IMAGE_ARG_ENCODING%_%IMAGE_ARG_TZ_AREA%.%IMAGE_ARG_TZ_ZONE%-alpine-3.9-archive /data/root /
+COPY --from=cirepo/waitforit:2.4.1-archive /data/root /
+COPY --from=cirepo/glibc:%IMAGE_ARG_GLIBC_VERSION%-alpine-3.9-archive /data/root /
+COPY --from=cirepo/java-11-%IMAGE_ARG_JAVA_VENDOR%:%IMAGE_ARG_JAVA_VERSION%-alpine-3.9-archive /data/root /
+COPY --from=cirepo/java-accessories:latest-archive /data/root /
+
+
+#echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf
+
+
+ENV JAVA_HOME ${IMAGE_ARG_JAVA_HOME:-/usr/lib/jvm/java-11-openjdk}
+ENV JAVA_OPTS -Duser.language=${IMAGE_ARG_LANGUAGE:-en} -Duser.region=${IMAGE_ARG_REGION:-US} -Dfile.encoding=${IMAGE_ARG_ENCODING:-UTF-8} -Duser.timezone=${IMAGE_ARG_TZ_AREA:-Etc}/${IMAGE_ARG_TZ_ZONE:-UTC} ${IMAGE_ARG_JAVA_OPTS}
+ENV LANG ${IMAGE_ARG_LOCALE:-en_US}.${IMAGE_ARG_ENCODING:-UTF-8}
+ENV LC_ALL ${IMAGE_ARG_LOCALE:-en_US}.${IMAGE_ARG_ENCODING:-UTF-8}
+
+
+ENV PATH ${JAVA_HOME}/bin:${PATH}
+
+
+COPY --chown=alpine:alpine docker /
+
+
+USER root
+RUN set -eux \
+  && BIN_DIR=/usr/bin \
+  && MAN_DIR=/usr/share/man/man1 \
+  && cd ${BIN_DIR} && find ${JAVA_HOME}/bin -type f -perm -a=x -exec ln -s {} . \; \
+  && mkdir -p ${MAN_DIR} \
+  && if [[ -d ${JAVA_HOME}/man/man1 ]]; then \
+         cd ${MAN_DIR} && find ${JAVA_HOME}/man/man1 -type f -name "*.1" -exec ln -s {} . \;; \
+     fi \
+  \
+# https://github.com/docker-library/openjdk/issues/212#issuecomment-420979840
+# https://openjdk.java.net/jeps/341
+  && java -Xshare:dump \
+  \
+# basic smoke test
+  && java --version \
+  && javac --version
+USER alpine
+
+
+RUN set -ex \
+  && chmod 0755 ${HOME}/*.sh \
+  && mkdir -p ${HOME}/data
+
+
+VOLUME ["${HOME}/data", "/tmp"]
+
+
+USER alpine
+WORKDIR /home/alpine
+ENTRYPOINT ["/home/alpine/entrypoint.sh"]
+CMD []
