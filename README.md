@@ -14,7 +14,6 @@ Features:
 - jprofiler agent
 - arthas
 - JAVA_OPTS -Duser.language=en -Duser.region=US -Dfile.encoding=UTF-8 -Duser.timezone=Etc/UTC
-- CLASSPATH .:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib
 
 Env variables:
 
