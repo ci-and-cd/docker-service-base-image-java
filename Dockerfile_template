@@ -26,6 +26,7 @@ COPY --from=cirepo/java-accessories:latest-archive /data/root /
 
 
 ENV JAVA_HOME ${IMAGE_ARG_JAVA_HOME:-/usr/lib/jvm/java-11-openjdk}
+ENV JRE_HOME ${IMAGE_ARG_JAVA_HOME:-/usr/lib/jvm/java-11-openjdk}/jre
 ENV JAVA_OPTS -Duser.language=${IMAGE_ARG_LANGUAGE:-en} -Duser.region=${IMAGE_ARG_REGION:-US} -Dfile.encoding=${IMAGE_ARG_ENCODING:-UTF-8} -Duser.timezone=${IMAGE_ARG_TZ_AREA:-Etc}/${IMAGE_ARG_TZ_ZONE:-UTC} ${IMAGE_ARG_JAVA_OPTS}
 ENV LANG ${IMAGE_ARG_LOCALE:-en_US}.${IMAGE_ARG_ENCODING:-UTF-8}
 ENV LC_ALL ${IMAGE_ARG_LOCALE:-en_US}.${IMAGE_ARG_ENCODING:-UTF-8}
@@ -54,6 +55,14 @@ RUN set -eux \
 # basic smoke test
   && java --version \
   && javac --version
+# Install lsof telnet and Arthas
+ENV CLASSPATH .:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib
+RUN set -eux \
+  && apk add --update busybox-extras lsof \
+  && mkdir -p /usr/local/arthas \
+  && cd /usr/local/arthas \
+  && curl -L https://alibaba.github.io/arthas/install.sh | sh \
+  && rm -rf /tmp/* /var/cache/apk/*
 USER alpine
 
 
