@@ -1,0 +1,17 @@
+# Ignore everything
+*
+
+# But not these files...
+!/.gitignore
+!/etc/yum.repos.d/*
+!/home/centos/*
+!/root/*
+!/usr/**/*
+# etc...
+
+# ...even if they are in subdirectories
+!*/
+
+# if the files to be tracked are in subdirectories
+!*/sub/directory_x/file.txt
+!*/sub/directory_y/*

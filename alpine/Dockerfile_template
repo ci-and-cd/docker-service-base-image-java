@@ -55,14 +55,24 @@ RUN set -eux \
 # basic smoke test
   && java --version \
   && javac --version
-# Install lsof telnet and Arthas
+# Install lsof telnet and Arthas, see: https://alibaba.github.io/arthas/as.sh
 ENV CLASSPATH .:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib
 RUN set -eux \
   && apk add --update busybox-extras lsof \
+  && ln -s /opt/jprofiler11 /opt/jprofiler \
   && mkdir -p /usr/local/arthas \
   && cd /usr/local/arthas \
   && curl -L https://alibaba.github.io/arthas/install.sh | sh \
+  && ln -s /opt/perf-map-agent-alpine-3.9_amd64 /opt/perf-map-agent \
+  && mkdir -p /root/.arthas/lib/3.1.0 \
+  && ln -s /opt/arthas-3.1.0 /root/.arthas/lib/3.1.0/arthas \
+  && mkdir -p /home/alpine/.arthas/lib/3.1.0 \
+  && ln -s /opt/arthas-3.1.0 /home/alpine/.arthas/lib/3.1.0/arthas \
+  && cd /opt \
+  && git clone --depth=1 https://github.com/brendangregg/FlameGraph \
   && rm -rf /tmp/* /var/cache/apk/*
+
+ENV PATH ${PATH}:/usr/local/arthas
 USER alpine
 
 

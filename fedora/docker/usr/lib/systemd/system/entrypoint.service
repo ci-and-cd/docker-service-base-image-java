@@ -1,0 +1,14 @@
+[Unit]
+Description=Main Application Service
+Documentation=man:parfait(1)
+After=network-online.target pmcd.service
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/root/entrypoint.sh
+Group=root
+User=root
+
+[Install]
+WantedBy=multi-user.target

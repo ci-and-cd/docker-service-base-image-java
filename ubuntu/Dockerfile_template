@@ -1,0 +1,217 @@
+
+FROM cirepo/nix:2.2.1-bionic
+
+
+ARG IMAGE_ARG_APT_MIRROR
+
+ARG IMAGE_ARG_ENCODING
+ARG IMAGE_ARG_JAVA_HOME
+ARG IMAGE_ARG_JRE_HOME
+ARG IMAGE_ARG_JAVA_OPTS
+ARG IMAGE_ARG_JAVA_VENDOR
+ARG IMAGE_ARG_LANGUAGE
+ARG IMAGE_ARG_LOCALE
+ARG IMAGE_ARG_REGION
+ARG IMAGE_ARG_TZ_AREA
+ARG IMAGE_ARG_TZ_ZONE
+
+
+COPY --from=cirepo/locale:%IMAGE_ARG_LOCALE%.%IMAGE_ARG_ENCODING%_%IMAGE_ARG_TZ_AREA%.%IMAGE_ARG_TZ_ZONE%-bionic-archive /data/root /
+COPY --from=cirepo/waitforit:2.4.1-archive /data/root /
+
+COPY --from=cirepo/java-11-%IMAGE_ARG_JAVA_VENDOR%:%IMAGE_ARG_JAVA_VERSION%-alpine-3.9-archive /data/root /
+COPY --from=cirepo/java-accessories:latest-archive /data/root /
+
+
+#echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf
+
+
+#ENV JAVA_HOME ${IMAGE_ARG_JAVA_HOME:-/usr/lib/jvm/java-8-openjdk-amd64}
+ENV JAVA_HOME ${IMAGE_ARG_JAVA_HOME:-/usr/lib/jvm/java-11-openjdk-amd64}
+#ENV JRE_HOME ${IMAGE_ARG_JRE_HOME:-/usr/lib/jvm/java-8-openjdk-amd64/jre}
+ENV JRE_HOME ${IMAGE_ARG_JRE_HOME:-/usr/lib/jvm/java-11-openjdk-amd64/jre}
+ENV JAVA_OPTS -Duser.language=${IMAGE_ARG_LANGUAGE:-en} -Duser.region=${IMAGE_ARG_REGION:-US} -Dfile.encoding=${IMAGE_ARG_ENCODING:-UTF-8} -Duser.timezone=${IMAGE_ARG_TZ_AREA:-Etc}/${IMAGE_ARG_TZ_ZONE:-UTC} ${IMAGE_ARG_JAVA_OPTS}
+
+
+ENV PATH ${JAVA_HOME}/bin:${PATH}
+ENV DEBIAN_FRONTEND noninteractive
+
+COPY --chown=ubuntu:ubuntu docker /
+
+
+USER root
+ENV HOME=/root \
+    USER=root
+RUN set -eux \
+  && chown -R root:root /root \
+# see: https://hub.docker.com/r/jrei/systemd-ubuntu/dockerfile
+# see: https://hub.docker.com/r/jrei/systemd-ubuntu
+  && apt -y update && apt -y upgrade && apt -y install systemd \
+#  && apt -y install openjdk-8-jdk \
+  && apt -q -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && rm -f /var/cache/apt/*.bin \
+  && cd /lib/systemd/system/sysinit.target.wants/ \
+  && if [ -d /lib/systemd/system/sysinit.target.wants ]; then ls /lib/systemd/system/sysinit.target.wants/ | grep -v systemd-tmpfiles-setup | xargs rm -f; fi \
+  && rm -f /lib/systemd/system/multi-user.target.wants/* \
+       /etc/systemd/system/*.wants/* \
+       /lib/systemd/system/local-fs.target.wants/* \
+       /lib/systemd/system/sockets.target.wants/*udev* \
+       /lib/systemd/system/sockets.target.wants/*initctl* \
+       /lib/systemd/system/basic.target.wants/* \
+       /lib/systemd/system/anaconda.target.wants/* \
+       /lib/systemd/system/plymouth* \
+       /lib/systemd/system/systemd-update-utmp* \
+  && BIN_DIR=/usr/bin \
+  && MAN_DIR=/usr/share/man/man1 \
+  && cd ${BIN_DIR} && find ${JAVA_HOME}/bin -type f -perm -a=x -exec ln -s {} . \; \
+  && mkdir -p ${MAN_DIR} \
+  && if [[ -d ${JAVA_HOME}/man/man1 ]]; then \
+         cd ${MAN_DIR} && find ${JAVA_HOME}/man/man1 -type f -name "*.1" -exec ln -s {} . \;; \
+     fi \
+  \
+# https://github.com/docker-library/openjdk/issues/212#issuecomment-420979840
+# https://openjdk.java.net/jeps/341
+  && java -Xshare:dump \
+  \
+# basic smoke test
+  && java -version \
+  && javac -version
+# Install lsof telnet and Arthas, see: https://alibaba.github.io/arthas/as.sh
+ENV CLASSPATH .:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib
+RUN set -eux \
+  && apt -y update && apt -y install telnet lsof \
+  && ln -s /opt/jprofiler11 /opt/jprofiler \
+  && mkdir -p /usr/local/arthas \
+  && cd /usr/local/arthas \
+  && curl -L https://alibaba.github.io/arthas/install.sh | sh \
+#  && ln -s /opt/perf-map-agent-alpine-3.9_amd64 /opt/perf-map-agent
+  && rm -rf /opt/perf-map-agent-alpine-3.9_amd64 \
+  && mkdir -p /root/.arthas/lib/3.1.0 \
+  && ln -s /opt/arthas-3.1.0 /root/.arthas/lib/3.1.0/arthas \
+  && mkdir -p /home/ubuntu/.arthas/lib/3.1.0 \
+  && ln -s /opt/arthas-3.1.0 /home/ubuntu/.arthas/lib/3.1.0/arthas \
+  && cd /opt \
+#  && dnf -y install "perl(open)" \
+  && git clone --depth=1 https://github.com/brendangregg/FlameGraph \
+# provide symbols
+  && apt -y install libc6 iptables \
+# see: https://wiki.ubuntu.com/Debug%20Symbol%20Packages
+  && touch /etc/apt/sources.list.d/ddebs.list \
+  && echo "deb http://ddebs.ubuntu.com $(lsb_release -cs) main restricted universe multiverse" | tee /etc/apt/sources.list.d/ddebs.list \
+  && echo "#deb http://ddebs.ubuntu.com $(lsb_release -cs)-security main restricted universe multiverse" | tee -a /etc/apt/sources.list.d/ddebs.list \
+#  && echo "deb http://ddebs.ubuntu.com $(lsb_release -cs)-updates main restricted universe multiverse" | tee -a /etc/apt/sources.list.d/ddebs.list \
+#  && echo "deb http://ddebs.ubuntu.com $(lsb_release -cs)-proposed main restricted universe multiverse" | tee -a /etc/apt/sources.list.d/ddebs.list \
+  && apt install ubuntu-dbgsym-keyring \
+  && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F2EDC64DC5AEE1F6B9C621F0C8CAB6595FDFF622 \
+  && apt -y update \
+# kernel version of container is same as host os
+  && apt -y install libc6-dbg iptables-dbgsym linux-image-4.15.0-20-generic-dbgsym xfsprogs-dbgsym \
+  && apt -q -y autoremove \
+  && apt -q -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && rm -f /var/cache/apt/*.bin
+ENV PATH ${PATH}:/usr/local/bin:/usr/local/arthas
+
+
+# setup for systemd containers
+ENV container docker
+
+# PCP
+# see: https://segmentfault.com/a/1190000008220280
+# see: https://hostpresto.com/community/tutorials/how-to-monitor-your-server-performance-with-pcp-and-vector-on-ubuntu-14-04/
+RUN set -eux \
+  && echo 'deb http://dl.bintray.com/pcp/bionic bionic main' | tee -a /etc/apt/sources.list \
+  && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A51D3ADCDEA2C114 \
+  && apt -y update \
+  && apt -y install pcp libpcp3-dev libpcp-pmda3-dev pcp-conf pcp-webapi linux-tools-generic --assume-yes --allow-downgrades --allow-remove-essential --allow-change-held-packages \
+#  && apt -y install parfait-examples pcp-parfait-agent \
+  && mkdir -p /var/lib/pcp && chmod -R 777 /var/lib/pcp \
+  && apt -q -y autoremove \
+  && apt -q -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && rm -f /var/cache/apt/*.bin
+
+# Run in the container as root - avoids host/container user mismatches
+ENV PCP_USER root
+ENV PCP_GROUP root
+
+# Register pmcd as a service to be started by systemd
+RUN set -eux \
+#  && systemctl enable pmcd \
+  && update-rc.d pmcd defaults \
+#  && systemctl enable pmie \
+#  && update-rc.d pmie defaults \
+#  && systemctl enable pmlogger_daily-poll \
+  && systemctl enable pmlogger \
+  && update-rc.d pmlogger defaults \
+  && systemctl enable pmwebd \
+  && update-rc.d pmwebd defaults \
+  && service pmcd restart \
+  && service pmlogger restart \
+  && service pmwebd restart
+
+# PCP_PMDAS_DIR=/var/lib/pcp/pmdas
+# https://github.com/spiermar/vector-pmda
+ENV FLAMEGRAPH_DIR /opt/FlameGraph
+ENV PERF_RECORD_SECONDS 30
+ENV PCP_PMDAS_DIR /var/lib/pcp/pmdas
+RUN set -eux \
+  && git clone https://github.com/jvm-profiling-tools/perf-map-agent.git /usr/lib/jvm/perf-map-agent-openjdk \
+  && apt -y update && apt -y install git make \
+  && apt -y install gcc g++ python3-pip \
+  && pip3 install --upgrade cmake \
+  && cd /usr/lib/jvm/perf-map-agent-openjdk \
+  && cmake . \
+  && make \
+  && bin/create-links-in /usr/local/bin \
+  && git clone -b pcp4 https://github.com/infra-top/vector-pmda.git /var/lib/pcp/pmdas/vector \
+  && cd /var/lib/pcp/pmdas/vector \
+  && make \
+# Can not mount volumes
+# '--tmpfs=/run --tmpfs=/tmp --volume=/run/containers/pcp-java-app-ubuntu:/run/pcp --volume=/sys/fs/cgroup:/sys/fs/cgroup:ro'
+# while building images.
+# Need to run `Install` in a running container.
+# systemctl restart pmcd; cd /var/lib/pcp/pmdas/vector; echo -e 'b\n' | ./Install
+  && pip3 uninstall -y cmake \
+  && apt -y purge gcc g++ python3-pip \
+  && apt -q -y autoremove \
+  && apt -q -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && rm -f /var/cache/apt/*.bin
+
+# Setup pmcd to run in unprivileged mode of operation
+RUN . /etc/pcp.conf; \
+    rm -f $PCP_SYSCONFIG_DIR/pmcd; \
+    echo "PMCD_ROOT_AGENT=0" >> $PCP_SYSCONFIG_DIR/pmcd
+
+# Configure pmcd with a minimal set of DSO agents
+RUN . /etc/pcp.conf; \
+    rm -f $PCP_PMCDCONF_PATH; \
+    echo "# Name  ID  IPC  IPC Params  File/Cmd" >> $PCP_PMCDCONF_PATH; \
+    echo "pmcd     2  dso  pmcd_init   $PCP_PMDAS_DIR/pmcd/pmda_pmcd.so"   >> $PCP_PMCDCONF_PATH; \
+    echo "proc     3  dso  proc_init   $PCP_PMDAS_DIR/proc/pmda_proc.so"   >> $PCP_PMCDCONF_PATH; \
+    echo "linux   60  dso  linux_init  $PCP_PMDAS_DIR/linux/pmda_linux.so" >> $PCP_PMCDCONF_PATH; \
+    echo "mmv     70  dso  mmv_init    $PCP_PMDAS_DIR/mmv/pmda_mmv.so"     >> $PCP_PMCDCONF_PATH; \
+    rm -f $PCP_VAR_DIR/pmns/root_xfs $PCP_VAR_DIR/pmns/root_jbd2 $PCP_VAR_DIR/pmns/root_root; \
+    touch $PCP_VAR_DIR/pmns/.NeedRebuild
+
+# Disable service advertising - no avahi support in the container
+# (dodges warnings from pmcd attempting to connect during startup)
+RUN . /etc/pcp.conf && echo "-A" >> $PCP_PMCDOPTIONS_PATH
+
+# allow unauthenticated access to proc.* metrics (default is false)
+ENV PROC_ACCESS 1
+
+EXPOSE 44321
+EXPOSE 44323
+
+STOPSIGNAL SIGRTMIN+3
+
+
+RUN set -eux \
+  && find ${HOME} -name '*.sh' -maxdepth 1 -exec chmod 0755 {} \; \
+  && mkdir -p ${HOME}/data
+
+
+VOLUME ["/run/pcp", "/sys/fs/cgroup", "${HOME}/data", "/tmp"]
+
+# ls -la /etc/systemd/system/multi-user.target.wants/
+RUN systemctl enable entrypoint
+
+
+USER root
+WORKDIR /root
+CMD ["/lib/systemd/systemd"]
