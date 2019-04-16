@@ -21,7 +21,7 @@ fi
 
 if [[ -n ${JRE_HOME} ]]; then export PATH="${JRE_HOME}/bin:${PATH}"; fi
 if (( $(echo "${JAVA_VERSION} > 8.0" | bc -l) )); then
-    if [[ -z "${JAVA_ADD_MODULES}" ]]; then export JAVA_ADD_MODULES=""; fi
+    if [[ -z "${JAVA_ADD_MODULES}" ]]; then export JAVA_ADD_MODULES="ALL-SYSTEM"; fi
 fi
 if [[ -n ${JAVA_HOME} ]]; then export PATH="${JAVA_HOME}/bin:${PATH}"; fi
 if [[ -z ${LOG_PATH+x} ]]; then export LOG_PATH="${HOME}/data/logs"; fi
@@ -80,7 +80,7 @@ if [[ -n "${SPRING_PROFILES_ACTIVE}" ]]; then JAVA_OPTS="${JAVA_OPTS} -Dspring.p
 
 
 if (( $(echo "${JAVA_VERSION} > 8.0" | bc -l) )); then
-    if [[ -n "${JAVA_ADD_MODULES}" ]]; then JAVA_OPTS="--add-modules ${JAVA_ADD_MODULES} ${JAVA_OPTS}"; fi
+    if [[ -n "${JAVA_ADD_MODULES}" ]]; then JAVA_OPTS="--add-modules=${JAVA_ADD_MODULES} ${JAVA_OPTS}"; fi
 fi
 export JAVA_TOOL_OPTIONS="${JAVA_OPTS}"
 
@@ -92,13 +92,25 @@ if [[ -z "${ENTRYPOINT_CMD}" ]]; then ENTRYPOINT_CMD="$@"; fi
 (>&2 echo exec ${ENTRYPOINT_CMD})
 cd ${ENTRYPOINT_WORKDIR}
 
+EXECUTABLE_FOUND=""
+# see: https://stackoverflow.com/questions/6363441/check-if-a-file-exists-with-wildcard-in-shell-script
+for f in *-exec.jar; do
+    [[ -e "$f" ]] && (>&2 echo "$f do exist") || (>&2 echo "*-exec.jar do not exist")
+    EXECUTABLE_FOUND="$f"
+    break
+done
+
 # if command starts with an option, prepend java
 if [[ -z "${ENTRYPOINT_CMD}" ]]; then
-    ENTRYPOINT_CMD="sleep infinity"
+    if [[ -n "${EXECUTABLE_FOUND}" ]]; then
+        ENTRYPOINT_CMD="java -jar ${EXECUTABLE_FOUND}"
+    else
+        ENTRYPOINT_CMD="sleep infinity"
+    fi
 elif [[ "${ENTRYPOINT_CMD:0:1}" == '-' ]]; then
-    ENTRYPOINT_CMD="java ${ENTRYPOINT_CMD} -jar *-exec.jar"
+    ENTRYPOINT_CMD="java ${ENTRYPOINT_CMD} -jar ${EXECUTABLE_FOUND}"
 elif [[ "${ENTRYPOINT_CMD:0:1}" != '/' ]]; then
-    ENTRYPOINT_CMD="java -jar *-exec.jar ${ENTRYPOINT_CMD}"
+    ENTRYPOINT_CMD="java -jar ${EXECUTABLE_FOUND} ${ENTRYPOINT_CMD}"
 fi
 
 (>&2 echo exec ${ENTRYPOINT_CMD})

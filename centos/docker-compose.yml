@@ -21,4 +21,4 @@ services:
       - IMAGE_ARG_JAVA_VENDOR=${IMAGE_ARG_JAVA_VENDOR:-openjdk}
       - IMAGE_ARG_TZ_AREA=${IMAGE_ARG_TZ_AREA:-Etc}
       - IMAGE_ARG_TZ_ZONE=${IMAGE_ARG_TZ_ZONE:-UTC}
-    image: ${IMAGE_PREFIX:-cirepo/}${IMAGE_NAME:-service-base-image-java}:${IMAGE_TAG:-openjdk-11.0.2-en_US.UTF-8_Etc.UTC-centos}
+    image: ${IMAGE_PREFIX:-cirepo/}${IMAGE_NAME:-service-base-image-java}:${IMAGE_TAG:-openjdk-11.0.2-en_US.UTF-8_Etc.UTC-centos-SNAPSHOT}
