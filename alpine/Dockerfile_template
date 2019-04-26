@@ -29,7 +29,8 @@ ENV JAVA_HOME ${IMAGE_ARG_JAVA_HOME:-/usr/lib/jvm/java-11-openjdk-amd64}
 ENV JRE_HOME ${IMAGE_ARG_JAVA_HOME:-/usr/lib/jvm/java-11-openjdk-amd64}/jre
 ENV JAVA_OPTS -Duser.language=${IMAGE_ARG_LANGUAGE:-en} -Duser.region=${IMAGE_ARG_REGION:-US} -Dfile.encoding=${IMAGE_ARG_ENCODING:-UTF-8} -Duser.timezone=${IMAGE_ARG_TZ_AREA:-Etc}/${IMAGE_ARG_TZ_ZONE:-UTC} ${IMAGE_ARG_JAVA_OPTS}
 ENV LANG ${IMAGE_ARG_LOCALE:-en_US}.${IMAGE_ARG_ENCODING:-UTF-8}
-ENV LC_ALL ${IMAGE_ARG_LOCALE:-en_US}.${IMAGE_ARG_ENCODING:-UTF-8}
+# bash: warning: setlocale: LC_ALL: cannot change locale
+#ENV LC_ALL ${IMAGE_ARG_LOCALE:-en_US}.${IMAGE_ARG_ENCODING:-UTF-8}
 
 
 ENV PATH ${JAVA_HOME}/bin:${PATH}
