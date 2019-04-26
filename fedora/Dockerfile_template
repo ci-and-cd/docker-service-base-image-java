@@ -104,7 +104,7 @@ ENV container docker
 RUN set -eux \
   && dnf --showduplicates list pcp \
   && dnf -y install createrepo.noarch \
-  && dnf -y install pcp pcp-devel pcp-conf pcp-webapi perf redhat-rpm-config \
+  && dnf --nogpgcheck -y install pcp pcp-devel pcp-conf pcp-webapi perf redhat-rpm-config \
   && dnf --nogpgcheck -y install parfait-examples pcp-parfait-agent \
   && mkdir -p /var/lib/pcp && chmod -R 777 /var/lib/pcp \
   && dnf clean all
