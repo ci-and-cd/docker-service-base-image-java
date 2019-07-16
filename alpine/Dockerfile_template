@@ -75,10 +75,12 @@ RUN set -eux \
   && rm -rf /tmp/* /var/cache/apk/*
 
 # see: https://stackoverflow.com/questions/30626136/cannot-load-font-in-jre-8
+#  && ln -s /usr/lib/*.so.* $JAVA_HOME/lib/ \
+#  && ln -s /lib/$(readlink /lib/libc.musl-x86_64.so.1) $JAVA_HOME/lib/libc.musl-x86_64.so.1 \
 ENV LD_LIBRARY_PATH /usr/lib
 RUN set -eux \
-  && apk add --update fontconfig ttf-dejavu \
-  && ln -s /lib/libc.musl-x86_64.so.1 $JAVA_HOME/lib/ \
+  && apk add --update font-adobe-100dpi fontconfig ttf-dejavu \
+  && ln -s /lib/$(readlink /lib/libc.musl-x86_64.so.1) $LD_LIBRARY_PATH/libc.musl-x86_64.so.1 \
   && printf 'version=1\n' | tee $JAVA_HOME/lib/fontconfig.properties \
   && printf 'sequence.allfonts=default\n' | tee -a $JAVA_HOME/lib/fontconfig.properties \
   && chmod 755 test.jsh \
