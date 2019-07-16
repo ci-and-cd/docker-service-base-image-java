@@ -80,7 +80,12 @@ if [[ -n "${SPRING_PROFILES_ACTIVE}" ]]; then JAVA_OPTS="${JAVA_OPTS} -Dspring.p
 
 
 if (( $(echo "${JAVA_VERSION} > 8.0" | bc -l) )); then
-    if [[ -n "${JAVA_ADD_MODULES}" ]]; then JAVA_OPTS="--add-modules=${JAVA_ADD_MODULES} ${JAVA_OPTS}"; fi
+    JAVA_OPTS="--illegal-access=permit ${JAVA_OPTS}";
+    if [[ -n "${JAVA_ADD_MODULES}" ]]; then JAVA_OPTS="--add-modules=${JAVA_ADD_MODULES} ${JAVA_OPTS}"; fi;
+    if [[ -n "${JAVA_ADD_EXPORTS}" ]]; then JAVA_ADD_EXPORTS="--add-exports java.base/jdk.internal.loader=ALL-UNNAMED --add-exports java.base/sun.security.ssl=ALL-UNNAMED"; fi;
+    JAVA_OPTS="${JAVA_ADD_EXPORTS} ${JAVA_OPTS}";
+    if [[ -n "${JAVA_ADD_OPENS}" ]]; then JAVA_ADD_OPENS="--add-opens java.base/jdk.internal.loader=ALL-UNNAMED --add-opens java.base/sun.security.ssl=ALL-UNNAMED"; fi;
+    JAVA_OPTS="${JAVA_ADD_OPENS} ${JAVA_OPTS}";
 fi
 export JAVA_TOOL_OPTIONS="${JAVA_OPTS}"
 

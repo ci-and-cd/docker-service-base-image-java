@@ -58,7 +58,9 @@ RUN set -eux \
   && javac --version
 # Install lsof telnet and Arthas, see: https://alibaba.github.io/arthas/as.sh
 ENV CLASSPATH .:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib
+# see: https://stackoverflow.com/questions/30626136/cannot-load-font-in-jre-8
 RUN set -eux \
+  && apk add --update fontconfig ttf-dejavu \
   && apk add --update busybox-extras lsof \
   && ln -s /opt/jprofiler11 /opt/jprofiler \
   && mkdir -p /usr/local/arthas \
