@@ -3,7 +3,11 @@
 
 # But not these files...
 !/.gitignore
+!/home/alpine/.jprofiler10/jprofiler_config.xml
+!/home/alpine/.jprofiler11/jprofiler_config.xml
 !/home/alpine/entrypoint.sh
+!/home/alpine/HuaKangShouZhaTiw5-1.ttf
+!/home/alpine/test.jsh
 # etc...
 
 # ...even if they are in subdirectories

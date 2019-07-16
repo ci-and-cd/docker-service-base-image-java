@@ -58,9 +58,8 @@ RUN set -eux \
   && javac --version
 # Install lsof telnet and Arthas, see: https://alibaba.github.io/arthas/as.sh
 ENV CLASSPATH .:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib
-# see: https://stackoverflow.com/questions/30626136/cannot-load-font-in-jre-8
+
 RUN set -eux \
-  && apk add --update fontconfig ttf-dejavu \
   && apk add --update busybox-extras lsof \
   && ln -s /opt/jprofiler11 /opt/jprofiler \
   && mkdir -p /usr/local/arthas \
@@ -73,6 +72,17 @@ RUN set -eux \
   && ln -s /opt/arthas-3.1.0 /home/alpine/.arthas/lib/3.1.0/arthas \
   && cd /opt \
   && git clone --depth=1 https://github.com/brendangregg/FlameGraph \
+  && rm -rf /tmp/* /var/cache/apk/*
+
+# see: https://stackoverflow.com/questions/30626136/cannot-load-font-in-jre-8
+ENV LD_LIBRARY_PATH /usr/lib
+RUN set -eux \
+  && apk add --update fontconfig ttf-dejavu \
+  && ln -s /lib/libc.musl-x86_64.so.1 $JAVA_HOME/lib/ \
+  && printf 'version=1\n' | tee $JAVA_HOME/lib/fontconfig.properties \
+  && printf 'sequence.allfonts=default\n' | tee -a $JAVA_HOME/lib/fontconfig.properties \
+  && chmod 755 test.jsh \
+  && ./test.jsh \
   && rm -rf /tmp/* /var/cache/apk/*
 
 ENV PATH ${PATH}:/usr/local/arthas
